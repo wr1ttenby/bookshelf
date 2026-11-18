@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나의 서가</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  @font-face{
+    font-family:"Pretendard";
+    src:url("fonts/PretendardVariable.woff2") format("woff2-variations"), url("fonts/PretendardVariable.woff2") format("woff2");
+    font-weight:45 920;font-style:normal;font-display:swap;
+  }
+  :root{
+    --bg:#f1f1ef;
+    --ink:#2a2622;
+    --muted:#86837d;
+    --line:#dfdeda;
+    --paper:#f8f5ee;
+    --serif:"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --sans:"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink)}
+  body{font-family:var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased;word-break:keep-all}
+  .wrap{max-width:1080px;margin:0 auto;padding:64px 32px 96px}
+
+  /* ── top bar ── */
+  .top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;margin-bottom:44px}
+  .crumb{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+  .crumb span{color:var(--muted)}
+  .mark{font-weight:800;font-size:24px;letter-spacing:-.045em;text-align:center}
+  .total{justify-self:end;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+
+  /* ── toolbar ── */
+  .bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px}
+  .tbtn{font:inherit;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;background:none;border:0;color:var(--ink);cursor:pointer;padding:6px 0;display:inline-flex;align-items:center;gap:8px}
+  .tbtn svg{width:16px;height:12px}
+  .tbtn.sort{justify-self:end}
+  .ynav{display:flex;gap:28px;justify-content:center}
+  .ytab{font-family:var(--mono);font-size:13px;background:none;border:0;cursor:pointer;color:#a9a59e;padding:6px 0;position:relative;letter-spacing:.02em}
+  .ytab sup{font-size:9.5px;margin-left:3px;vertical-align:5px}
+  .ytab:hover{color:var(--ink)}
+  .ytab[aria-selected="true"]{color:var(--ink)}
+  .ytab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1.5px;background:var(--ink)}
+  .ytab:focus-visible,.tbtn:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+  .filters{display:flex;flex-wrap:wrap;gap:6px;overflow:hidden;max-height:0;opacity:0;transition:max-height .3s,opacity .3s,margin .3s}
+  .filters.on{max-height:120px;opacity:1;margin-top:18px}
+  .chip{font:inherit;font-size:12px;border:1px solid var(--line);background:transparent;color:var(--ink);padding:5px 12px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .chip:hover{border-color:#bdb8ae}
+  .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .chip .n{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .chip[aria-pressed="true"] .n{color:#bdb4a6}
+  .yearline{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:28px;padding-top:14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .goal{display:flex;align-items:center;gap:10px}
+  .goal-bar{width:120px;height:2px;background:var(--line);overflow:hidden}
+  .goal-bar i{display:block;height:100%;background:var(--ink)}
+
+  /* ── collector grid ── */
+  section.year{animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:64px 32px;margin:52px 0 88px}
+  .item{display:flex;flex-direction:column;background:none;border:0;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;transition:opacity .25s}
+  .item.dim{opacity:.22}
+  .item:focus-visible{outline:none}
+  .item:focus-visible .stage{outline:2px solid var(--ink);outline-offset:-2px}
+  .stage{height:260px;display:flex;align-items:center;justify-content:center}
+  .obj{position:relative;width:var(--w);height:var(--h);margin-right:var(--t);transition:transform .45s cubic-bezier(.2,.8,.2,1);
+    filter:drop-shadow(0 14px 12px rgba(30,20,10,.20)) drop-shadow(0 2px 2px rgba(30,20,10,.14))}
+  .item:hover .obj,.item:focus-visible .obj,.item.out .obj{transform:translateY(-6px)}
+  .edge{position:absolute;top:3px;bottom:3px;right:calc(var(--t) * -1);width:var(--t);border-radius:0 2px 2px 0;
+    background:repeating-linear-gradient(90deg,#f1ece2 0 1px,#dad3c5 1px 2px)}
+  .face{position:absolute;inset:0;overflow:hidden;background:var(--tone);color:#F3EEDF;border-radius:1px 2px 2px 1px;
+    box-shadow:inset 5px 0 0 rgba(0,0,0,.10), inset 6px 0 0 rgba(255,255,255,.05);transition:opacity .35s ease}
+  .face.back{opacity:0;background:var(--paper-back,#F3EEDF);color:#2a2622;box-shadow:inset 5px 0 0 var(--tone), inset 6px 0 0 rgba(0,0,0,.06)}
+  .item:hover .face.back,.item:focus-visible .face.back{opacity:1}
+  .item:hover .face.front,.item:focus-visible .face.front{opacity:0}
+  .face .in{position:absolute;inset:12px 11px 11px 15px;display:flex;flex-direction:column}
+  .ct{font-weight:750;letter-spacing:-.035em;line-height:1.12;word-break:keep-all}
+  .ca{font-size:10px;opacity:.78;letter-spacing:-.01em;line-height:1.3}
+  .cm{white-space:nowrap;font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;opacity:.65;text-transform:uppercase}
+  .rule{height:1px;background:currentColor;opacity:.45}
+  /* layout 0: classic */
+  .L0 .ct{margin-top:6px}
+  .L0 .foot{display:flex;justify-content:space-between;align-items:flex-end;gap:6px;margin-top:auto}
+  /* layout 1: ruled, centered */
+  .in.L1{justify-content:center;text-align:center;gap:10px}
+  .L1 .head{position:absolute;top:0;left:0;right:0;text-align:center}
+  .L1 .tail{position:absolute;bottom:0;left:0;right:0;text-align:center}
+  /* layout 2: vertical title */
+  .L2 .ct{writing-mode:vertical-rl;position:absolute;top:0;right:0;bottom:22px;overflow:hidden}
+  .L2 .ca{position:absolute;left:0;bottom:0;max-width:62%}
+  .L2 .cm{position:absolute;left:0;top:0}
+  /* layout 3: big initial */
+  .L3 .big{position:absolute;right:-14px;bottom:-30px;font-size:132px;font-weight:800;line-height:1;opacity:.13;letter-spacing:-.06em}
+  .L3 .ca{margin-top:auto}
+  /* back cover */
+  .bq{font-size:10px;line-height:1.6;opacity:.92;display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden;letter-spacing:-.01em}
+  .bq mark{background:linear-gradient(transparent 60%, rgba(156,118,56,.28) 60%);color:inherit}
+  .bc{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+  .barcode{width:44px;height:22px;background:#fff;padding:3px 3px 6px;flex:none;box-shadow:0 0 0 .5px rgba(0,0,0,.08)}
+  .barcode i{display:block;height:100%;background:var(--bars)}
+  .info{margin-top:18px}
+  .tag{font-size:10.5px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  .ttl{font-size:15px;font-weight:500;margin-top:5px;letter-spacing:-.015em;line-height:1.35}
+  .mt{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:5px}
+
+  /* reader */
+  .scrim{position:fixed;inset:0;background:rgba(42,38,34,.32);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .3s;z-index:20}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .stack{position:fixed;left:50%;top:50%;width:min(580px,92vw);height:min(760px,86vh);z-index:30;pointer-events:none;
+    transform:translate(-50%,-44%);opacity:0;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s}
+  .stack.on{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
+  .sheet-back{position:absolute;inset:0;background:#efe9dc;border-radius:2px;box-shadow:0 10px 30px rgba(40,30,20,.12)}
+  .sheet-back.b1{transform:rotate(3.2deg) translate(10px,6px)}
+  .sheet-back.b2{transform:rotate(-1deg) translate(-6px,4px);background:#f3eee3}
+  .sheet{position:absolute;inset:0;transform:rotate(-1.6deg);background:var(--paper);border-radius:2px;
+    box-shadow:0 18px 50px rgba(40,30,20,.22),0 2px 6px rgba(40,30,20,.08);
+    background-image:radial-gradient(circle at 20% 10%,rgba(255,255,255,.7),transparent 60%),radial-gradient(circle at 90% 100%,rgba(215,200,170,.18),transparent 55%);
+    display:flex;flex-direction:column;overflow:hidden}
+  .sheet-scroll{flex:1;overflow:auto;padding:40px 56px 28px}
+  .pno{text-align:center;font-family:var(--serif);font-size:13px;color:var(--muted);margin-bottom:30px}
+  .genre-tag{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);letter-spacing:.02em}
+  .genre-tag i{width:8px;height:8px;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
+  .sheet h2{font-family:var(--serif);font-weight:700;font-size:26px;line-height:1.35;margin:10px 0 6px;letter-spacing:-.025em}
+  .sheet .by{font-family:var(--serif);font-size:15px;color:#5b5853}
+  .meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:14px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+  .lbl{font-size:11.5px;color:var(--muted);letter-spacing:.06em;margin:26px 0 12px}
+  .q{white-space:pre-line;font-family:var(--serif);font-size:15px;line-height:1.9;margin-bottom:18px;color:#2b2a28;letter-spacing:-.01em}
+  .q mark{background:linear-gradient(transparent 58%, #ece2c6 58%);color:inherit;padding:0 1px}
+  .q .p{font-family:var(--sans);font-size:11.5px;color:var(--muted);margin-left:6px;white-space:nowrap}
+  .q.poem{font-size:19px;font-weight:300;text-align:center;margin:12px 0 4px}
+  .memo{white-space:pre-line;font-family:var(--serif);font-size:14px;color:#66635d;border-left:2px solid var(--c,#999);padding:2px 0 2px 14px;margin:6px 0 18px}
+  dl.vocab{display:grid;grid-template-columns:auto 1fr;gap:9px 18px;font-size:14px;line-height:1.6}
+  dl.vocab dt{font-family:var(--serif);font-weight:700}
+  dl.vocab dd{color:#5b544b}
+  .vocab-more{font-size:12px;color:var(--muted);margin-top:12px}
+  .summary{border:1px dashed #cfc6b6;border-radius:3px;padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.7}
+  .sheet-foot{display:flex;justify-content:space-between;align-items:center;padding:14px 22px;border-top:1px solid var(--line);background:rgba(248,245,238,.9)}
+  .nav{font:inherit;font-size:13px;background:none;border:0;color:var(--ink);cursor:pointer;padding:6px 8px;border-radius:4px}
+  .nav:hover{background:#ece6da}
+  .nav:disabled{opacity:.3;cursor:default;background:none}
+  .close{position:absolute;top:14px;right:16px;z-index:2;font:inherit;font-size:20px;line-height:1;background:none;border:0;color:var(--muted);cursor:pointer;width:32px;height:32px;border-radius:50%}
+  .close:hover{background:#ece6da;color:var(--ink)}
+  .count{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+  footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:20px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .sync{display:inline-flex;align-items:center;gap:8px}
+  .sync i{width:6px;height:6px;border-radius:50%;background:#b9b5ae}
+  .sync.live i{background:#6f9a6a}
+  .sync button{font:inherit;font-size:12px;border:1px solid var(--line);background:transparent;border-radius:999px;padding:3px 10px;cursor:pointer;color:var(--ink)}
+  .note{font-size:13px;color:var(--muted);line-height:1.7;margin-top:22px}
+
+  @media (max-width:760px){
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:48px 20px}
+  }
+  @media (max-width:640px){
+    .wrap{padding:28px 16px 72px}
+    .top{grid-template-columns:1fr auto;margin-bottom:28px}
+    .top .crumb{display:none}
+    .mark{text-align:left}
+    .bar{grid-template-columns:auto 1fr auto}
+    .ynav{gap:16px}
+    .stage{height:220px}
+    .sheet-scroll{padding:32px 26px 22px}
+    .sheet h2{font-size:22px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="crumb" id="crumb">Shelf <span>/</span> 2026</div>
+    <div class="mark">나의 서가</div>
+    <div class="total" id="total"></div>
+  </header>
+  <div class="bar">
+    <button class="tbtn" id="ftoggle" aria-expanded="false">Filters
+      <svg viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M0 3h16M0 9h16"/><circle cx="5" cy="3" r="2" fill="var(--bg)"/><circle cx="11" cy="9" r="2" fill="var(--bg)"/></svg>
+    </button>
+    <nav class="ynav" id="ynav" role="tablist" aria-label="연도"></nav>
+    <button class="tbtn sort" id="sort">읽은 순 ↓</button>
+  </div>
+  <div class="filters" id="filters"></div>
+  <main id="years"></main>
+
+  <footer><span>표지에 마우스를 올리면 뒷표지가, 누르면 밑줄 친 문장이 펼쳐집니다 · 출처: 노션</span><span class="sync" id="sync"><i></i><span id="sync-text">불러오는 중…</span></span></footer>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="stack" id="stack" role="dialog" aria-modal="true" aria-labelledby="r-title">
+  <div class="sheet-back b1"></div>
+  <div class="sheet-back b2"></div>
+  <article class="sheet" id="sheet">
+    <button class="close" id="close" aria-label="닫기">×</button>
+    <div class="sheet-scroll" id="sheet-body"></div>
+    <div class="sheet-foot">
+      <button class="nav" id="prev">← 이전 책</button>
+      <span class="count" id="count"></span>
+      <button class="nav" id="next">다음 책 →</button>
+    </div>
+  </article>
+</div>
+
+<script>
+// 갤러리 서점 팔레트: 흑백 무채색이 바탕, 장르 몇 개만 선명한 색
+const PALETTE = {
+  "소설":  { shades:["#2F3A4F"], fg:"#F3EEDF" },  // 네이비 재킷
+  "에세이": { shades:["#6E7F63"], fg:"#F3EEDF" },  // 연잎 세이지
+  "시":    { shades:["#7A77A6"], fg:"#F3EEDF" },  // 수련 페리윙클
+  "인문":  { shades:["#9C7638"], fg:"#F3EEDF" },  // 단풍잎 오커
+  "예술":  { shades:["#A65A57"], fg:"#F3EEDF" }   // 샌들 더스티 레드
+};
+const BACK_PAPER = "#F3EEDF";                      // 버터 크림 (뒷면 종이)
+const GENRES = Object.fromEntries(Object.entries(PALETTE).map(([g,v])=>[g, v.shades[0]]));
+
+const HL0 = "\u0001", HL1 = "\u0002";   // 노션에서 굵게 표시한 부분(강조)
+let LIBRARY = {};
+let UPDATED_AT = null;
+
+// 실제 책등 색(알라딘 책등 이미지에서 추출). 없으면 장르 팔레트로 대체
+// 모든 책등을 한 색으로 통일 (null로 바꾸면 실제 책등 색으로 돌아감)
+const UNIFORM = { bg:"#5e3f31", fg:"#f2ebe1" };
+// 연도별 책등 톤: 해가 지날수록 한 단계씩 깊어짐
+const YEAR_TONES = { 2024:"#8A6A58", 2025:"#5E3F31", 2026:"#3E2A21" };
+function toneFor(year){
+  if (YEAR_TONES[year]) return YEAR_TONES[year];
+  const ys = Object.keys(YEAR_TONES).map(Number).sort((a,b)=>a-b);
+  return +year < ys[0] ? YEAR_TONES[ys[0]] : YEAR_TONES[ys[ys.length-1]];
+}
+function spineStyle(b, h, year){
+  if (UNIFORM) return { bg: toneFor(year), fg: UNIFORM.fg };
+  if (!b.spine){ const pal = PALETTE[b.group]; return {bg: pal.shades[h % pal.shades.length], fg: pal.fg}; }
+  const stops = b.spine.flatMap(([s,e,c])=>[`${c} ${s}%`, `${c} ${e}%`]).join(",");
+  const main = b.spine.reduce((a,x)=> (x[1]-x[0]) > (a[1]-a[0]) ? x : a);
+  const top = b.spine[0];
+  const lum = c => { const n=parseInt(c.slice(1),16); const [r,g,bb]=[n>>16,(n>>8)&255,n&255].map(v=>{v/=255;return v<=.03928?v/12.92:((v+.055)/1.055)**2.4}); return .2126*r+.7152*g+.0722*bb; };
+  const L = (lum(main[2]) + lum(top[2])) / 2;
+  const inkStops = b.spine.flatMap(([s,e,c])=>{ const t = lum(c) < .32 ? "#f6f4ef" : "#1f1d1b"; return [`${t} ${s}%`, `${t} ${e}%`]; }).join(",");
+  return {bg:`linear-gradient(to bottom, ${stops})`, fg: L < .32 ? "#f6f4ef" : "#1f1d1b", ink:`linear-gradient(to bottom, ${inkStops})`};
+}
+const hash = s => [...s].reduce((h,c)=>(h*31 + c.charCodeAt(0))>>>0, 7);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const flat = []; // [{year, idx, book, el}]
+let current = -1;
+let selYear = (location.hash.match(/^#y(\d{4})$/)||[])[1] || null;
+window.addEventListener("hashchange", ()=>{ const y=(location.hash.match(/^#y(\d{4})$/)||[])[1]; if (y && LIBRARY[y] && y!==selYear){ selYear=y; close(); render(); } });
+const mobile = matchMedia("(max-width:640px)");
+
+const SORTS = [
+  { key:"read",  label:"읽은 순 ↓",  fn:(a,b)=>a._i-b._i },
+  { key:"title", label:"제목 순 ↓",  fn:(a,b)=>a.title.localeCompare(b.title,"ko") },
+  { key:"pages", label:"두꺼운 순 ↓", fn:(a,b)=>b.pages-a.pages }
+];
+let sortIdx = 0, genreFilter = null;
+const ymd = d => { const m = (d||"").match(/(\d{4})\D+(\d{1,2})/); return m ? `${m[1]}.${m[2].padStart(2,"0")}` : ""; };
+const plain = t => (t||"").replace(/[\u0001\u0002]/g,"");
+
+function coverHTML(b, i, year){
+  const h = hash(b.title), t = b.title;
+  const len = [...t].length;
+  let L = h % 4; if (L === 2 && len > 8) L = 0;
+  const fs = len <= 4 ? 24 : len <= 8 ? 19 : len <= 14 ? 15.5 : 13;
+  const author = esc((b.author||"").replace(/\(.*?\)/g,"").split(",")[0].trim());
+  const no = String(i+1).padStart(2,"0");
+  const g = esc(b.genre || b.group || "");
+  if (L === 0) return `<div class="in L0"><div class="cm">${g}</div><div class="ct" style="font-size:${fs}px">${esc(t)}</div><div class="foot"><div class="ca">${author}</div><div class="cm">No.${no}</div></div></div>`;
+  if (L === 1) return `<div class="in L1"><div class="head cm">${year}</div><div class="rule"></div><div class="ct" style="font-size:${Math.min(fs,20)}px">${esc(t)}</div><div class="rule"></div><div class="ca">${author}</div><div class="tail cm">No.${no}</div></div>`;
+  if (L === 2) return `<div class="in L2"><div class="cm">${year} · ${no}</div><div class="ct" style="font-size:${Math.min(fs+1,20)}px">${esc(t)}</div><div class="ca">${author}</div></div>`;
+  return `<div class="in L3"><div class="big">${esc([...t][0])}</div><div class="ct" style="font-size:${Math.min(fs,17)}px">${esc(t)}</div><div class="ca">${author}</div></div>`;
+}
+function backHTML(b){
+  let line = "";
+  const q = (b.quotes||[])[0];
+  if (q){
+    const m = q.t.match(/\u0001([\s\S]*?)\u0002/);
+    line = m ? `<mark>${esc(m[1])}</mark>` : esc(plain(q.t));
+  } else if (b.memo) line = esc(b.memo);
+  else if (b.poems?.length) line = b.poems.map(p=>`「${esc(p)}」`).join(" ");
+  else if (b.vocab?.length) line = b.vocab.slice(0,4).map(([w,d])=>`<mark>${esc(w)}</mark> ${esc(d)}`).join("<br>");
+  const h = hash(b.title);
+  let pos = 0; const segs = [];
+  for (let k = 0; k < 30; k++){ const w = 1 + ((h >> (k % 28)) & 1) + (k % 7 === 0 ? 1 : 0); if (k % 2 === 0) segs.push(`#2a2622 ${pos}px ${pos+w}px`); else segs.push(`transparent ${pos}px ${pos+w}px`); pos += w; }
+  const stops = segs.join(",");
+  return `<div class="in"><div class="bq">${line || "—"}</div><div class="bc"><div class="cm">${b.pages}p · ${ymd(b.date).slice(0,4)}</div><div class="barcode"><i style="--bars:linear-gradient(90deg,${stops})"></i></div></div></div>`;
+}
+
+function render(){
+  const root = document.getElementById("years");
+  root.innerHTML = "";
+  flat.length = 0;
+  const yearsAsc = Object.keys(LIBRARY).sort((a,b)=>a-b);
+  if (!LIBRARY[selYear]) selYear = yearsAsc[yearsAsc.length-1];
+  const total = yearsAsc.reduce((s,y)=>s+LIBRARY[y].books.length,0);
+  document.getElementById("total").textContent = `${total} BOOKS`;
+  document.getElementById("crumb").innerHTML = `Shelf <span>/</span> ${selYear}`;
+  const nav = document.getElementById("ynav");
+  nav.innerHTML = yearsAsc.map(y=>`<button class="ytab" role="tab" aria-selected="${y===selYear}" data-y="${y}">${y}<sup>${LIBRARY[y].books.length}</sup></button>`).join("");
+  nav.querySelectorAll(".ytab").forEach(t=>t.onclick=()=>{ selYear = t.dataset.y; genreFilter = null; try{ history.replaceState(null,"","#y"+selYear); }catch(e){} render(); });
+  document.getElementById("sort").textContent = SORTS[sortIdx].label;
+
+  const year = selYear;
+  const {goal} = LIBRARY[year];
+  const books = LIBRARY[year].books.map((b,i)=>Object.assign(b,{_i:i})).slice().sort(SORTS[sortIdx].fn);
+  const pages = books.reduce((s,b)=>s+b.pages,0);
+  const counts = {}; books.forEach(b=>counts[b.group]=(counts[b.group]||0)+1);
+
+  const fl = document.getElementById("filters");
+  fl.innerHTML = Object.keys(GENRES).filter(g=>counts[g]).map(g=>`<button class="chip" data-g="${g}" aria-pressed="${genreFilter===g}">${g}<span class="n">${counts[g]}</span></button>`).join("");
+  fl.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{ genreFilter = genreFilter === c.dataset.g ? null : c.dataset.g; render(); });
+
+  const sec = document.createElement("section");
+  sec.className = "year";
+  sec.innerHTML = `<div class="yearline"><span>${books.length} BOOKS · ${pages.toLocaleString()} PAGES</span>${goal ? `<span class="goal">${books.length} / ${goal}<span class="goal-bar"><i style="width:${Math.min(100,books.length/goal*100)}%"></i></span></span>` : ""}</div><div class="grid" role="list"></div>`;
+  const grid = sec.querySelector(".grid");
+  books.forEach(b=>{
+    const tone = GENRES[b.group] || "#5E3F31";
+    const t = Math.round(Math.max(4, Math.min(14, b.pages / 38)));
+    const el = document.createElement("button");
+    el.className = "item" + (genreFilter && b.group !== genreFilter ? " dim" : "");
+    el.setAttribute("role","listitem");
+    el.setAttribute("aria-label", `${b.title}, ${b.author}`);
+    el.innerHTML = `<div class="stage"><div class="obj" style="--w:130px;--h:182px;--t:${t}px;--tone:${tone}">
+        <div class="face front">${coverHTML(b, b._i, year)}</div>
+        <div class="face back">${backHTML(b)}</div>
+        <div class="edge"></div></div></div>
+      <div class="info"><div class="tag">${esc(b.genre || b.group)}</div><div class="ttl">${esc(b.title)}</div><div class="mt">${b.pages}p — ${ymd(b.date) || "—"}</div></div>`;
+    const fi = flat.length;
+    el.addEventListener("click", ()=>open(fi));
+    flat.push({year, idx:b._i, book:b, el});
+    grid.appendChild(el);
+  });
+  root.appendChild(sec);
+}
+document.getElementById("sort").onclick = ()=>{ sortIdx = (sortIdx + 1) % SORTS.length; close(); render(); };
+document.getElementById("ftoggle").onclick = (e)=>{ const f = document.getElementById("filters"); const on = !f.classList.contains("on"); f.classList.toggle("on", on); e.currentTarget.setAttribute("aria-expanded", on); };
+
+function pageHTML(entry){
+  const b = entry.book, c = GENRES[b.group];
+  const meta = [b.genre, b.publisher, b.date, `${b.pages}쪽`, b.price].filter(Boolean);
+  let body = "";
+  if (b.quotes?.length){
+    const fmt = t => t.includes(HL0) ? esc(t).replace(/\u0001/g,"<mark>").replace(/\u0002/g,"</mark>") : `<mark>${esc(t)}</mark>`;
+    body += `<div class="lbl">밑줄 친 문장</div>` + b.quotes.map(q=>`<p class="q">${fmt(q.t)}${q.p?`<span class="p">${q.p}</span>`:""}</p>`).join("");
+  }
+  if (b.poems?.length){
+    body += `<div class="lbl">마음에 남은 시</div>` + b.poems.map(p=>`<p class="q poem">「${esc(p)}」</p>`).join("");
+  }
+  if (b.vocab?.length){
+    body += `<div class="lbl">나의 어휘 사전</div><dl class="vocab">${b.vocab.map(([w,d])=>`<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
+    if (b.vocabTotal > b.vocab.length) body += `<div class="vocab-more">외 ${b.vocabTotal - b.vocab.length}개 단어</div>`;
+  }
+  if (b.memo) body += `<div class="lbl">${b.source === "log" ? "감상" : "메모"}</div><p class="memo" style="--c:${c}">${esc(b.memo)}</p>`;
+  body += `<div class="lbl">200자 요약</div><div class="summary">${b.summary ? esc(b.summary) : "아직 쓰지 않았어요. 노션의 ‘200자 요약/정리’를 채우면 여기에 들어옵니다."}</div>`;
+
+  return `
+    <div class="pno">${entry.idx + 1}</div>
+    <span class="genre-tag"><i style="background:${c}"></i>${esc(b.genre)} · ${entry.year}</span>
+    <h2 id="r-title">${esc(b.title)}</h2>
+    <div class="by">${esc(b.author)}</div>
+    <div class="meta">${meta.slice(1).map(esc).map(m=>`<span>${m}</span>`).join("")}</div>
+    ${body}`;
+}
+
+const stack = document.getElementById("stack");
+const scrim = document.getElementById("scrim");
+const bodyEl = document.getElementById("sheet-body");
+let lastFocus = null;
+
+function open(i){
+  if (i < 0 || i >= flat.length) return;
+  if (current < 0) lastFocus = document.activeElement;
+  flat.forEach(f=>f.el.classList.remove("out"));
+  current = i;
+  const e = flat[i];
+  e.el.classList.add("out");
+  bodyEl.innerHTML = pageHTML(e);
+  bodyEl.scrollTop = 0;
+  document.getElementById("count").textContent = `${e.idx + 1} / ${LIBRARY[e.year].books.length}`;
+  document.getElementById("prev").disabled = i === 0;
+  document.getElementById("next").disabled = i === flat.length - 1;
+  stack.classList.add("on"); scrim.classList.add("on");
+  document.getElementById("close").focus({preventScroll:true});
+}
+function close(){
+  if (current < 0) return;
+  flat[current].el.classList.remove("out");
+  current = -1;
+  stack.classList.remove("on"); scrim.classList.remove("on");
+  lastFocus?.focus?.({preventScroll:true});
+}
+document.getElementById("close").onclick = close;
+scrim.onclick = close;
+document.getElementById("prev").onclick = ()=>open(current-1);
+document.getElementById("next").onclick = ()=>open(current+1);
+document.addEventListener("keydown", e=>{
+  if (current < 0) return;
+  if (e.key === "Escape") close();
+  else if (e.key === "ArrowLeft") open(current-1);
+  else if (e.key === "ArrowRight") open(current+1);
+});
+// ───────── 데이터 불러오기 (GitHub Actions가 노션에서 만든 books.json) ─────────
+const syncText = document.getElementById("sync-text");
+async function load(){
+  try {
+    const res = await fetch("books.json", { cache: "no-cache" });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    LIBRARY = data.years || {};
+    UPDATED_AT = data.updatedAt ? new Date(data.updatedAt) : null;
+    if (data.sample) {
+      syncText.textContent = "샘플 데이터 · 노션 연결 전";
+    } else if (UPDATED_AT) {
+      syncText.textContent = "노션 기준 · " + UPDATED_AT.toLocaleString("ko-KR", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
+      document.getElementById("sync").classList.add("live");
+    }
+  } catch (e) {
+    syncText.textContent = "책 목록을 불러오지 못했어요";
+  }
+  if (Object.keys(LIBRARY).length) render();
+}
+
+let lastMobile = mobile.matches;
+mobile.addEventListener?.("change", ()=>{ if (mobile.matches !== lastMobile){ lastMobile = mobile.matches; close(); render(); }});
+
+load();
+</script>
+</body>
+</html>
