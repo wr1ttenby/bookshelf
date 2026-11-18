@@ -1,0 +1,45 @@
+name: 노션에서 서가 만들기
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # Actions 탭에서 'Run workflow'로 바로 반영
+  schedule:
+    - cron: "17 */6 * * *"  # 6시간마다 (UTC 기준) 노션 내용을 다시 읽음
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 노션 데이터베이스 읽기
+        run: node scripts/fetch-notion.mjs
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
